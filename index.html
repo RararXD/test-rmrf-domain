@@ -21,8 +21,9 @@
       background-color: var(--bg);
       min-height: 100vh;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
+      padding: 24px 0;
       font-family: 'Noto Serif SC', serif;
       overflow: hidden;
       cursor: none;
@@ -62,6 +63,7 @@
       position: relative;
       perspective: 1000px;
       z-index: 1;
+      transform-origin: top center;
     }
 
     .paper {
@@ -309,6 +311,7 @@
         overflow-y: auto;
         overflow-x: hidden;
         align-items: flex-start;
+        justify-content: center;
         padding: 20px 0;
       }
 
@@ -595,6 +598,7 @@ document.addEventListener('mouseleave', () => { mouseIn = false; prevX = -1; pre
 const stamp = document.getElementById('stamp');
 const paper = document.querySelector('.paper');
 const domainBlock = document.querySelector('.domain-block');
+const scene = document.querySelector('.scene');
 const MOBILE = window.matchMedia('(max-width: 768px)').matches;
 const BASE_SZ = MOBILE ? 72 : 90;
 const MAX_SZ  = MOBILE ? 280 : 400;              // upper cap so it doesn't grow forever
@@ -665,6 +669,28 @@ function getEffectiveBaseSize(paperWidth) {
   return BASE_SZ * getViewportScale(paperWidth);
 }
 
+function fitSceneToViewport() {
+  if (!scene) return;
+  if (window.innerWidth <= 768) {
+    scene.style.transform = 'none';
+    return;
+  }
+
+  scene.style.transform = 'none';
+  const rect = scene.getBoundingClientRect();
+  const SIDE_GUTTER = 24;
+  const TOP_GUTTER = 24;
+  const BOTTOM_GUTTER = 24;
+  const availableWidth = Math.max(1, window.innerWidth - SIDE_GUTTER * 2);
+  const availableHeight = Math.max(1, window.innerHeight - TOP_GUTTER - BOTTOM_GUTTER);
+  const scale = Math.min(
+    1,
+    availableWidth / Math.max(1, rect.width),
+    availableHeight / Math.max(1, rect.height)
+  );
+  scene.style.transform = `scale(${scale})`;
+}
+
 function syncStampStateFromCurrent() {
   const m = getPaperMetrics();
   stampRelX = Math.min(1, Math.max(0, (stampCX - m.left) / m.width));
@@ -710,8 +736,9 @@ function animateTo(newSz) {
 }
 
 function setInitialStampPosition() {
+  fitSceneToViewport();
   const m = getPaperMetrics();
-  if (paperBaseWidth <= 0) paperBaseWidth = m.width;
+  if (paperBaseWidth <= 0) paperBaseWidth = Math.max(1, paper.offsetWidth);
 
   if (domainBlock) {
     const d = domainBlock.getBoundingClientRect();
@@ -742,8 +769,9 @@ if (document.readyState === 'loading') {
 
 function handleStampResize() {
   if (dragging) return;
+  fitSceneToViewport();
   const m = getPaperMetrics();
-  if (paperBaseWidth <= 0) paperBaseWidth = m.width;
+  if (paperBaseWidth <= 0) paperBaseWidth = Math.max(1, paper.offsetWidth);
 
   const effectiveBase = getEffectiveBaseSize(m.width);
   sz = Math.min(MAX_SZ, Math.max(effectiveBase * 0.5, effectiveBase * stampUserScale));
@@ -753,7 +781,16 @@ function handleStampResize() {
   syncStampStateFromCurrent();
 }
 
+window.addEventListener('resize', fitSceneToViewport);
 window.addEventListener('resize', handleStampResize);
+
+// Recompute once after the paper unfold transform ends.
+// Without this, initial placement can be measured in animated coordinates
+// and only become correct after the first resize.
+paper.addEventListener('animationend', e => {
+  if (e.animationName !== 'unfold' || dragging) return;
+  setInitialStampPosition();
+});
 
 // ══ POINTER EVENTS ══════════════════════════
 stamp.addEventListener('pointerdown', e => {
