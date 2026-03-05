@@ -298,6 +298,106 @@
       opacity: 0;
       animation: fadein 0.6s ease 3.2s forwards;
     }
+
+    @media (max-width: 768px) {
+      body {
+        min-height: 100dvh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        align-items: flex-start;
+        padding: 20px 0;
+      }
+
+      .scene {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .paper {
+        width: min(640px, 94vw);
+        padding: 36px 18px 40px;
+      }
+
+      .paper::after {
+        left: 18px;
+        right: 18px;
+      }
+
+      .doc-number {
+        font-size: 9px;
+        margin-bottom: 22px;
+        line-height: 1.5;
+        word-break: break-word;
+      }
+
+      .header {
+        margin-bottom: 24px;
+      }
+
+      .issuer {
+        font-size: 12px;
+        letter-spacing: 0.18em;
+      }
+
+      .divider {
+        margin-bottom: 22px;
+      }
+
+      .body-text {
+        line-height: 1.85;
+      }
+
+      .body-text p {
+        margin-bottom: 12px;
+      }
+
+      .domain-block span {
+        font-size: 1.05em;
+        letter-spacing: 0.08em;
+        word-break: break-all;
+      }
+
+      .footer {
+        margin-top: 26px;
+        gap: 12px;
+      }
+
+      .date, .signature {
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .stamp-hint {
+        bottom: 12px;
+        font-size: 9px;
+      }
+
+      .stamp {
+        width: 72px;
+        height: 72px;
+      }
+
+      #cursor {
+        display: none;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .title {
+        font-size: clamp(22px, 8.4vw, 30px);
+      }
+
+      .footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .signature {
+        text-align: left;
+      }
+    }
   </style>
 </head>
 <body>
@@ -485,8 +585,9 @@ document.addEventListener('mouseleave', () => { mouseIn = false; prevX = -1; pre
 // ════════════════════════════════════════════
 const stamp = document.getElementById('stamp');
 const paper = document.querySelector('.paper');
-const BASE_SZ = 90;
-const MAX_SZ  = 400;              // upper cap so it doesn't grow forever
+const MOBILE = window.matchMedia('(max-width: 768px)').matches;
+const BASE_SZ = MOBILE ? 72 : 90;
+const MAX_SZ  = MOBILE ? 280 : 400;              // upper cap so it doesn't grow forever
 const ROT = -18;
 
 let sz = BASE_SZ;          // rendered diameter (animated via CSS transition)
