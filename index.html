@@ -98,6 +98,7 @@
       bottom: 20px; left: 52px; right: 52px;
       height: 1px;
       background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      z-index: 1;
     }
 
     .doc-number {
@@ -211,9 +212,9 @@
       line-height: 2;
     }
 
-    /* 印章 fixed，可拖动 */
+    /* 印章 absolute，可拖动 */
     .stamp {
-      position: fixed;
+      position: absolute;
       width: 90px;
       height: 90px;
       border: 3px solid var(--stamp-red);
@@ -284,7 +285,7 @@
 
     .stamp-hint {
       position: absolute;
-      bottom: 22px;
+      bottom: 36px;
       left: 50%;
       transform: translateX(-50%);
       font-family: 'Share Tech Mono', monospace;
@@ -297,6 +298,9 @@
       text-align: center;
       opacity: 0;
       animation: fadein 0.6s ease 3.2s forwards;
+      background: rgba(245, 240, 232, 0.9);
+      padding: 0 8px;
+      border-radius: 2px;
     }
 
     @media (max-width: 768px) {
@@ -370,7 +374,7 @@
       }
 
       .stamp-hint {
-        bottom: 12px;
+        bottom: 24px;
         font-size: 9px;
       }
 
@@ -378,6 +382,10 @@
         width: 72px;
         height: 72px;
       }
+
+      .stamp-text-top  { font-size: 8px; }
+      .stamp-main      { font-size: 14px; }
+      .stamp-text-bottom { font-size: 7px; }
 
       #cursor {
         display: none;
@@ -443,7 +451,7 @@
       </div>
     </div>
 
-    <div class="stamp-hint"> 双击印章放大 · 长按还原 · 拖动移位 </div>
+    <div class="stamp-hint"> 双击/双触印章放大 · 长按还原 · 拖动移位 </div>
     <div class="fold"></div>
   </div>
   <div class="fine-print">* 本公告具有法律约束力（对本人的钱包而言）</div>
@@ -588,15 +596,18 @@ const paper = document.querySelector('.paper');
 const MOBILE = window.matchMedia('(max-width: 768px)').matches;
 const BASE_SZ = MOBILE ? 72 : 90;
 const MAX_SZ  = MOBILE ? 280 : 400;              // upper cap so it doesn't grow forever
+const TOP_BASE_FONT = MOBILE ? 8 : 9;
+const MAIN_BASE_FONT = MOBILE ? 14 : 18;
+const BOTTOM_BASE_FONT = MOBILE ? 7 : 8;
 const ROT = -18;
 
 let sz = BASE_SZ;          // rendered diameter (animated via CSS transition)
-let targetSz = BASE_SZ;    // logical target size
 let stampCX = 0, stampCY = 0;
 
 let dragging = false;
 let offX = 0, offY = 0;
 let dragMoved = false;
+let lastTapTime = 0;
 
 // Long-press timer
 let longPressTimer = null;
@@ -605,14 +616,20 @@ const LONG_PRESS_MS = 600;
 // ── smooth size transition via CSS
 stamp.style.transition = 'width 0.45s cubic-bezier(0.34,1.56,0.64,1), height 0.45s cubic-bezier(0.34,1.56,0.64,1), left 0.45s cubic-bezier(0.34,1.56,0.64,1), top 0.45s cubic-bezier(0.34,1.56,0.64,1), font-size 0.45s cubic-bezier(0.34,1.56,0.64,1), border-width 0.45s ease, box-shadow 0.2s';
 
-// ── get paper bounds in viewport coords
-function paperRect() {
-  return paper.getBoundingClientRect();
+// ── get paper bounds in page coords (include scroll offset)
+function paperRectPage() {
+  const r = paper.getBoundingClientRect();
+  return {
+    left: r.left + window.scrollX,
+    right: r.right + window.scrollX,
+    top: r.top + window.scrollY,
+    bottom: r.bottom + window.scrollY
+  };
 }
 
 // ── clamp stamp center so it stays inside paper
 function clampToPaper(cx, cy, radius) {
-  const r = paperRect();
+  const r = paperRectPage();
   const minX = r.left   + radius;
   const maxX = r.right  - radius;
   const minY = r.top    + radius;
@@ -639,9 +656,9 @@ function commitStamp(instant) {
   stamp.style.transform = `rotate(${ROT}deg)`;
 
   const s = sz / BASE_SZ;
-  stamp.querySelector('.stamp-text-top').style.fontSize    = (9  * s) + 'px';
-  stamp.querySelector('.stamp-main').style.fontSize        = (18 * s) + 'px';
-  stamp.querySelector('.stamp-text-bottom').style.fontSize = (8  * s) + 'px';
+  stamp.querySelector('.stamp-text-top').style.fontSize    = (TOP_BASE_FONT * s) + 'px';
+  stamp.querySelector('.stamp-main').style.fontSize        = (MAIN_BASE_FONT * s) + 'px';
+  stamp.querySelector('.stamp-text-bottom').style.fontSize = (BOTTOM_BASE_FONT * s) + 'px';
   stamp.style.borderWidth = Math.max(1.5, 3 * s) + 'px';
 
   if (instant) {
@@ -661,8 +678,8 @@ function animateTo(newSz) {
 // ── initialise stamp position after entry animation
 setTimeout(() => {
   const r = stamp.getBoundingClientRect();
-  stampCX = r.left + r.width / 2;
-  stampCY = r.top  + r.height / 2;
+  stampCX = r.left + window.scrollX + r.width / 2;
+  stampCY = r.top  + window.scrollY + r.height / 2;
   sz = BASE_SZ;
   commitStamp(true);
 }, 2650);
@@ -674,15 +691,17 @@ stamp.addEventListener('pointerdown', e => {
   dragging  = false;
   dragMoved = false;
 
-  offX = e.clientX - stampCX;
-  offY = e.clientY - stampCY;
+  const pageX = e.clientX + window.scrollX;
+  const pageY = e.clientY + window.scrollY;
+  offX = pageX - stampCX;
+  offY = pageY - stampCY;
 
   // Start long-press countdown → restore to BASE_SZ
   longPressTimer = setTimeout(() => {
     longPressTimer = null;
     animateTo(BASE_SZ);
     // burst particles on shrink
-    for (let i = 0; i < 12; i++) spawnAt(stampCX, stampCY, 1);
+    for (let i = 0; i < 12; i++) spawnAt(stampCX - window.scrollX, stampCY - window.scrollY, 1);
   }, LONG_PRESS_MS);
 });
 
@@ -690,8 +709,10 @@ stamp.addEventListener('pointermove', e => {
   if (!stamp.hasPointerCapture(e.pointerId)) return;
   e.preventDefault();
 
-  const dx = e.clientX - (stampCX + offX);
-  const dy = e.clientY - (stampCY + offY);
+  const pageX = e.clientX + window.scrollX;
+  const pageY = e.clientY + window.scrollY;
+  const dx = pageX - (stampCX + offX);
+  const dy = pageY - (stampCY + offY);
   if (Math.hypot(dx, dy) > 4) {
     dragMoved = true;
     dragging  = true;
@@ -701,8 +722,8 @@ stamp.addEventListener('pointermove', e => {
   }
 
   if (dragging) {
-    stampCX = e.clientX - offX;
-    stampCY = e.clientY - offY;
+    stampCX = pageX - offX;
+    stampCY = pageY - offY;
     commitStamp(true);   // instant pos update while dragging
     spawnAt(e.clientX, e.clientY, 2);
   }
@@ -710,15 +731,22 @@ stamp.addEventListener('pointermove', e => {
 
 stamp.addEventListener('pointerup', e => {
   e.preventDefault();
-  const wasDragging = dragging;
   dragging = false;
   stamp.classList.remove('dragging');
 
   if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
 
-  // Double-click = enlarge (only if not drag)
   if (!dragMoved) {
-    // handled by dblclick below
+    if (e.pointerType !== 'mouse') {
+      const now = Date.now();
+      if (now - lastTapTime < 320) {
+        animateTo(Math.min(MAX_SZ, sz * 1.5));
+        for (let i = 0; i < 18; i++) spawnAt(stampCX - window.scrollX, stampCY - window.scrollY, 1);
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now;
+      }
+    }
   }
 });
 
@@ -726,7 +754,7 @@ stamp.addEventListener('dblclick', e => {
   e.preventDefault();
   if (dragMoved) return;
   animateTo(Math.min(MAX_SZ, sz * 1.5));
-  for (let i = 0; i < 18; i++) spawnAt(stampCX, stampCY, 1);
+  for (let i = 0; i < 18; i++) spawnAt(stampCX - window.scrollX, stampCY - window.scrollY, 1);
 });
 
 // Prevent context menu on long-press (mobile)
