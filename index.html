@@ -404,7 +404,7 @@
 
       .signature {
         text-align: right;
-        align-self: flex-end;
+        width: 100%;
       }
     }
   </style>
@@ -598,6 +598,7 @@ const domainBlock = document.querySelector('.domain-block');
 const MOBILE = window.matchMedia('(max-width: 768px)').matches;
 const BASE_SZ = MOBILE ? 72 : 90;
 const MAX_SZ  = MOBILE ? 280 : 400;              // upper cap so it doesn't grow forever
+const DESKTOP_BASE_SZ = 90;
 const TOP_BASE_FONT = MOBILE ? 8 : 9;
 const MAIN_BASE_FONT = MOBILE ? 14 : 18;
 const BOTTOM_BASE_FONT = MOBILE ? 7 : 8;
@@ -605,6 +606,9 @@ const ROT = -18;
 
 let sz = BASE_SZ;          // rendered diameter (animated via CSS transition)
 let stampCX = 0, stampCY = 0;
+let stampRelX = 0.5, stampRelY = 0.5;
+let paperBaseWidth = 0;
+let stampUserScale = 1;
 
 let dragging = false;
 let offX = 0, offY = 0;
@@ -642,6 +646,33 @@ function clampToPaper(cx, cy, radius) {
   };
 }
 
+function getPaperMetrics() {
+  const r = paperRectPage();
+  return {
+    left: r.left,
+    top: r.top,
+    width: Math.max(1, r.right - r.left),
+    height: Math.max(1, r.bottom - r.top)
+  };
+}
+
+function getViewportScale(paperWidth) {
+  if (MOBILE || paperBaseWidth <= 0) return 1;
+  return paperWidth / paperBaseWidth;
+}
+
+function getEffectiveBaseSize(paperWidth) {
+  return BASE_SZ * getViewportScale(paperWidth);
+}
+
+function syncStampStateFromCurrent() {
+  const m = getPaperMetrics();
+  stampRelX = Math.min(1, Math.max(0, (stampCX - m.left) / m.width));
+  stampRelY = Math.min(1, Math.max(0, (stampCY - m.top) / m.height));
+  const effectiveBase = getEffectiveBaseSize(m.width);
+  stampUserScale = sz / Math.max(1, effectiveBase);
+}
+
 // ── apply position & size to DOM (with optional instant flag to skip transition)
 function commitStamp(instant) {
   const radius = sz / 2;
@@ -675,26 +706,54 @@ function commitStamp(instant) {
 function animateTo(newSz) {
   sz = newSz;
   commitStamp(false);
+  syncStampStateFromCurrent();
 }
 
-// ── initialise stamp position after entry animation
-setTimeout(() => {
+function setInitialStampPosition() {
+  const m = getPaperMetrics();
+  if (paperBaseWidth <= 0) paperBaseWidth = m.width;
+
   if (domainBlock) {
     const d = domainBlock.getBoundingClientRect();
     const domainLeft = d.left + window.scrollX;
     const domainTop = d.top + window.scrollY;
     const domainWidth = d.width;
-    // Align with desktop intent: initial stamp appears above the domain block.
-    stampCX = domainLeft + domainWidth * 0.64;
-    stampCY = domainTop - BASE_SZ * 0.68;
+    const domainHeight = d.height;
+    // Place initial stamp at the center of the highlighted domain row.
+    stampCX = domainLeft + domainWidth * 0.5;
+    stampCY = domainTop + domainHeight * 0.5;
   } else {
     const r = paperRectPage();
-    stampCX = r.right - BASE_SZ * 0.9;
-    stampCY = r.bottom - BASE_SZ * 1.25;
+    stampCX = r.right - DESKTOP_BASE_SZ * 0.9;
+    stampCY = r.bottom - DESKTOP_BASE_SZ * 1.25;
   }
-  sz = BASE_SZ;
+  sz = getEffectiveBaseSize(m.width);
   commitStamp(true);
-}, 2650);
+  syncStampStateFromCurrent();
+}
+
+// Set initial position before the entry animation plays,
+// so the stamp does not jump after animation ends.
+if (document.readyState === 'loading') {
+  window.addEventListener('load', setInitialStampPosition, { once: true });
+} else {
+  requestAnimationFrame(setInitialStampPosition);
+}
+
+function handleStampResize() {
+  if (dragging) return;
+  const m = getPaperMetrics();
+  if (paperBaseWidth <= 0) paperBaseWidth = m.width;
+
+  const effectiveBase = getEffectiveBaseSize(m.width);
+  sz = Math.min(MAX_SZ, Math.max(effectiveBase * 0.5, effectiveBase * stampUserScale));
+  stampCX = m.left + m.width * stampRelX;
+  stampCY = m.top + m.height * stampRelY;
+  commitStamp(true);
+  syncStampStateFromCurrent();
+}
+
+window.addEventListener('resize', handleStampResize);
 
 // ══ POINTER EVENTS ══════════════════════════
 stamp.addEventListener('pointerdown', e => {
@@ -708,10 +767,10 @@ stamp.addEventListener('pointerdown', e => {
   offX = pageX - stampCX;
   offY = pageY - stampCY;
 
-  // Start long-press countdown → restore to BASE_SZ
+  // Start long-press countdown → restore to current baseline size
   longPressTimer = setTimeout(() => {
     longPressTimer = null;
-    animateTo(BASE_SZ);
+    animateTo(getEffectiveBaseSize(getPaperMetrics().width));
     // burst particles on shrink
     for (let i = 0; i < 12; i++) spawnAt(stampCX - window.scrollX, stampCY - window.scrollY, 1);
   }, LONG_PRESS_MS);
@@ -760,6 +819,7 @@ stamp.addEventListener('pointerup', e => {
       }
     }
   }
+  syncStampStateFromCurrent();
 });
 
 stamp.addEventListener('dblclick', e => {
