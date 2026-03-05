@@ -399,11 +399,12 @@
 
       .footer {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
       }
 
       .signature {
-        text-align: left;
+        text-align: right;
+        align-self: flex-end;
       }
     }
   </style>
@@ -593,6 +594,7 @@ document.addEventListener('mouseleave', () => { mouseIn = false; prevX = -1; pre
 // ════════════════════════════════════════════
 const stamp = document.getElementById('stamp');
 const paper = document.querySelector('.paper');
+const domainBlock = document.querySelector('.domain-block');
 const MOBILE = window.matchMedia('(max-width: 768px)').matches;
 const BASE_SZ = MOBILE ? 72 : 90;
 const MAX_SZ  = MOBILE ? 280 : 400;              // upper cap so it doesn't grow forever
@@ -677,9 +679,19 @@ function animateTo(newSz) {
 
 // ── initialise stamp position after entry animation
 setTimeout(() => {
-  const r = stamp.getBoundingClientRect();
-  stampCX = r.left + window.scrollX + r.width / 2;
-  stampCY = r.top  + window.scrollY + r.height / 2;
+  if (domainBlock) {
+    const d = domainBlock.getBoundingClientRect();
+    const domainLeft = d.left + window.scrollX;
+    const domainTop = d.top + window.scrollY;
+    const domainWidth = d.width;
+    // Align with desktop intent: initial stamp appears above the domain block.
+    stampCX = domainLeft + domainWidth * 0.64;
+    stampCY = domainTop - BASE_SZ * 0.68;
+  } else {
+    const r = paperRectPage();
+    stampCX = r.right - BASE_SZ * 0.9;
+    stampCY = r.bottom - BASE_SZ * 1.25;
+  }
   sz = BASE_SZ;
   commitStamp(true);
 }, 2650);
