@@ -611,6 +611,8 @@ const ROT = -18;
 let sz = BASE_SZ;          // rendered diameter (animated via CSS transition)
 let stampCX = 0, stampCY = 0;
 let stampRelX = 0.5, stampRelY = 0.5;
+let stampDomainRelX = 0.5, stampDomainRelY = 0.5;
+let stampAnchoredToDomain = true;
 let paperBaseWidth = 0;
 let stampUserScale = 1;
 
@@ -667,6 +669,17 @@ function getViewportScale(paperWidth) {
 
 function getEffectiveBaseSize(paperWidth) {
   return BASE_SZ * getViewportScale(paperWidth);
+}
+
+function getDomainAnchorPoint() {
+  if (!domainBlock) return null;
+  const d = domainBlock.getBoundingClientRect();
+  const domainLeft = d.left + window.scrollX;
+  const domainTop = d.top + window.scrollY;
+  return {
+    x: domainLeft + d.width * stampDomainRelX,
+    y: domainTop + d.height * stampDomainRelY
+  };
 }
 
 function fitSceneToViewport() {
@@ -741,14 +754,12 @@ function setInitialStampPosition() {
   if (paperBaseWidth <= 0) paperBaseWidth = Math.max(1, paper.offsetWidth);
 
   if (domainBlock) {
-    const d = domainBlock.getBoundingClientRect();
-    const domainLeft = d.left + window.scrollX;
-    const domainTop = d.top + window.scrollY;
-    const domainWidth = d.width;
-    const domainHeight = d.height;
-    // Place initial stamp at the center of the highlighted domain row.
-    stampCX = domainLeft + domainWidth * 0.5;
-    stampCY = domainTop + domainHeight * 0.5;
+    const anchor = getDomainAnchorPoint();
+    if (anchor) {
+      // Place initial stamp at a stable relative point of the highlighted domain row.
+      stampCX = anchor.x;
+      stampCY = anchor.y;
+    }
   } else {
     const r = paperRectPage();
     stampCX = r.right - DESKTOP_BASE_SZ * 0.9;
@@ -775,8 +786,14 @@ function handleStampResize() {
 
   const effectiveBase = getEffectiveBaseSize(m.width);
   sz = Math.min(MAX_SZ, Math.max(effectiveBase * 0.5, effectiveBase * stampUserScale));
-  stampCX = m.left + m.width * stampRelX;
-  stampCY = m.top + m.height * stampRelY;
+  const anchor = stampAnchoredToDomain ? getDomainAnchorPoint() : null;
+  if (anchor) {
+    stampCX = anchor.x;
+    stampCY = anchor.y;
+  } else {
+    stampCX = m.left + m.width * stampRelX;
+    stampCY = m.top + m.height * stampRelY;
+  }
   commitStamp(true);
   syncStampStateFromCurrent();
 }
@@ -824,6 +841,7 @@ stamp.addEventListener('pointermove', e => {
   if (Math.hypot(dx, dy) > 4) {
     dragMoved = true;
     dragging  = true;
+    stampAnchoredToDomain = false;
     // Cancel long-press if user starts dragging
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     stamp.classList.add('dragging');
