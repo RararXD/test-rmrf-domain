@@ -7,12 +7,63 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
   <style>
     :root {
-      --bg: #0a0a08;
-      --paper: #f5f0e8;
-      --ink: #1a1a14;
+      --bg: #0b0c10;
+      --paper: #1e2229;
+      --ink: #ece7dd;
+      --red: #c9443a;
+      --gold: #c9a95a;
+      --stamp-red: rgba(201, 68, 58, 0.85);
+      --grid-line: rgba(255,255,255,0.018);
+      --muted-1: #c3bcc0;
+      --muted-2: #b2abb0;
+      --muted-3: #a09aa0;
+      --muted-4: #8f8990;
+      --muted-5: #7e7880;
+      --paper-edge: #2a3038;
+      --shadow-1: 0 0 0 1px rgba(0,0,0,0.4);
+      --shadow-2: 0 10px 20px rgba(0,0,0,0.45);
+      --shadow-3: 0 34px 80px rgba(0,0,0,0.65);
+      --shadow-4: 0 100px 180px rgba(0,0,0,0.55);
+      --hint-bg: rgba(26, 29, 35, 0.88);
+      --hint-text: rgba(201, 169, 90, 0.65);
+      --toggle-bg: rgba(26, 29, 35, 0.95);
+      --toggle-ink: #eee8de;
+      --toggle-border: rgba(255,255,255,0.08);
+      --toggle-shadow: rgba(0,0,0,0.5);
+      --domain-border: rgba(201, 68, 58, 0.32);
+      --domain-bg: rgba(201, 68, 58, 0.12);
+      --divider-line: rgba(255,255,255,0.32);
+      --signature-note: #b7b0b6;
+    }
+
+    html[data-theme='light'] {
+      --bg: #f1eee9;
+      --paper: #fffaf2;
+      --ink: #1f1a14;
       --red: #c0392b;
-      --gold: #b8960c;
-      --stamp-red: rgba(180, 30, 30, 0.85);
+      --gold: #a37700;
+      --stamp-red: rgba(160, 20, 20, 0.85);
+      --grid-line: rgba(0,0,0,0.03);
+      --muted-1: #7c7c7c;
+      --muted-2: #6e6e6e;
+      --muted-3: #5e5e5e;
+      --muted-4: #4e4e4e;
+      --muted-5: #3e3e3e;
+      --paper-edge: #e8e2d9;
+      --shadow-1: 0 0 0 1px rgba(0,0,0,0.08);
+      --shadow-2: 0 6px 14px rgba(0,0,0,0.12);
+      --shadow-3: 0 24px 64px rgba(0,0,0,0.18);
+      --shadow-4: 0 80px 140px rgba(0,0,0,0.15);
+      --hint-bg: rgba(255, 255, 255, 0.9);
+      --hint-text: rgba(120, 90, 20, 0.55);
+      --toggle-bg: rgba(255, 255, 255, 0.96);
+      --toggle-ink: #1f1a14;
+      --toggle-border: rgba(0,0,0,0.1);
+      --toggle-shadow: rgba(0,0,0,0.16);
+      --domain-border: rgba(160,20,20,0.18);
+      --domain-bg: rgba(160,20,20,0.06);
+      --divider-line: #c8c0b6;
+      --signature-note: #8b857a;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -34,10 +85,49 @@
       position: fixed;
       inset: 0;
       background-image:
-        repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,0.012) 60px, rgba(255,255,255,0.012) 61px),
-        repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,0.012) 60px, rgba(255,255,255,0.012) 61px);
+        repeating-linear-gradient(0deg, transparent, transparent 60px, var(--grid-line) 60px, var(--grid-line) 61px),
+        repeating-linear-gradient(90deg, transparent, transparent 60px, var(--grid-line) 60px, var(--grid-line) 61px);
       pointer-events: none;
       z-index: 0;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 10001;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--toggle-bg);
+      color: var(--toggle-ink);
+      border: 1px solid var(--toggle-border);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 8px 24px var(--toggle-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px var(--toggle-shadow);
+    }
+
+    .theme-toggle:active {
+      transform: translateY(0);
+    }
+
+    .theme-toggle .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.08) inset;
     }
 
     #particle-canvas {
@@ -71,11 +161,7 @@
       width: min(640px, 92vw);
       padding: 56px 52px 60px;
       position: relative;
-      box-shadow:
-        0 0 0 1px rgba(0,0,0,0.15),
-        0 4px 8px rgba(0,0,0,0.3),
-        0 20px 60px rgba(0,0,0,0.6),
-        0 60px 120px rgba(0,0,0,0.4);
+      box-shadow: var(--shadow-1), var(--shadow-2), var(--shadow-3), var(--shadow-4);
       opacity: 0;
       transform: translateY(40px) rotateX(6deg);
       animation: unfold 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
@@ -106,7 +192,7 @@
     .doc-number {
       font-family: 'Share Tech Mono', monospace;
       font-size: 10px;
-      color: #888;
+      color: var(--muted-2);
       letter-spacing: 0.15em;
       text-align: right;
       margin-bottom: 32px;
@@ -124,7 +210,7 @@
     .issuer {
       font-size: 13px;
       letter-spacing: 0.3em;
-      color: #555;
+      color: var(--muted-4);
       margin-bottom: 10px;
     }
 
@@ -156,8 +242,8 @@
       flex: 1;
       height: 1px;
     }
-    .divider::before { background: linear-gradient(90deg, transparent, #bbb); }
-    .divider::after  { background: linear-gradient(90deg, #bbb, transparent); }
+    .divider::before { background: linear-gradient(90deg, transparent, var(--divider-line)); }
+    .divider::after  { background: linear-gradient(90deg, var(--divider-line), transparent); }
     .divider span { font-size: 18px; color: var(--gold); }
 
     .body-text {
@@ -178,9 +264,9 @@
       text-align: center;
       margin: 6px 0 20px;
       padding: 10px 0;
-      border-top: 1px solid rgba(192,57,43,0.22);
-      border-bottom: 1px solid rgba(192,57,43,0.22);
-      background: rgba(192,57,43,0.05);
+      border-top: 1px solid var(--domain-border);
+      border-bottom: 1px solid var(--domain-border);
+      background: var(--domain-bg);
     }
 
     .domain-block span {
@@ -202,7 +288,7 @@
 
     .date {
       font-size: 13px;
-      color: #666;
+      color: var(--muted-3);
       line-height: 1.8;
       font-family: 'Share Tech Mono', monospace;
     }
@@ -210,8 +296,12 @@
     .signature {
       text-align: right;
       font-size: 14px;
-      color: #444;
+      color: var(--muted-5);
       line-height: 2;
+    }
+
+    .signature-note {
+      color: var(--signature-note);
     }
 
     /* 印章 absolute，可拖动 */
@@ -270,14 +360,14 @@
       width: 0; height: 0;
       border-style: solid;
       border-width: 0 0 28px 28px;
-      border-color: transparent transparent #d8d3cb transparent;
+      border-color: transparent transparent var(--paper-edge) transparent;
       filter: drop-shadow(-2px -2px 3px rgba(0,0,0,0.12));
     }
 
     .fine-print {
       margin-top: 6px;
       font-size: 11px;
-      color: #999;
+      color: var(--muted-1);
       text-align: center;
       font-family: 'Share Tech Mono', monospace;
       opacity: 0;
@@ -292,7 +382,7 @@
       transform: translateX(-50%);
       font-family: 'Share Tech Mono', monospace;
       font-size: 10px;
-      color: rgba(184,150,12,0.45);
+      color: var(--hint-text);
       letter-spacing: 0.08em;
       pointer-events: none;
       z-index: 200;
@@ -300,7 +390,7 @@
       text-align: center;
       opacity: 0;
       animation: fadein 0.6s ease 3.2s forwards;
-      background: rgba(245, 240, 232, 0.9);
+      background: var(--hint-bg);
       padding: 0 8px;
       border-radius: 2px;
     }
@@ -393,6 +483,13 @@
       #cursor {
         display: none;
       }
+
+      .theme-toggle {
+        top: 12px;
+        right: 12px;
+        padding: 7px 10px;
+        font-size: 10px;
+      }
     }
 
     @media (max-width: 420px) {
@@ -413,6 +510,11 @@
   </style>
 </head>
 <body>
+
+<button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false" aria-label="切换深色或浅色模式">
+  <span class="dot" aria-hidden="true"></span>
+  <span id="theme-label">深色</span>
+</button>
 
 <canvas id="particle-canvas"></canvas>
 <div id="cursor"></div>
@@ -451,7 +553,7 @@
       <div class="signature">
         网站所有者<br>
         某不知名折腾爱好者<br><br>
-        <small style="color:#aaa;">（签名潦草不可辨）</small>
+        <small class="signature-note">（签名潦草不可辨）</small>
       </div>
     </div>
 
@@ -591,6 +693,34 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('mouseenter', () => { mouseIn = true; });
 document.addEventListener('mouseleave', () => { mouseIn = false; prevX = -1; prevY = -1; });
+
+// ── theme toggle (dark/light)
+const themeToggle = document.getElementById('theme-toggle');
+const themeLabel = document.getElementById('theme-label');
+const THEME_KEY = 'announcement-theme';
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const isLight = theme === 'light';
+  if (themeToggle) themeToggle.setAttribute('aria-pressed', String(isLight));
+  if (themeLabel) themeLabel.textContent = isLight ? '浅色' : '深色';
+}
+
+function getInitialTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') return saved;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+applyTheme(getInitialTheme());
+
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  });
+}
 
 // ════════════════════════════════════════════
 //  STAMP — DRAG (clamped to paper) + DOUBLE-CLICK ENLARGE / LONG-PRESS RESTORE
